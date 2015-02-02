@@ -252,7 +252,8 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions);
 uint explain_filename(THD* thd, const char *from, char *to, uint to_length,
                       enum_explain_filename_mode explain_mode);
 
-
+bool mysql_toi_enter_pre(THD* thd, char *db_, char *table_, TABLE_LIST *table_list);
+bool mysql_toi_enter_post(THD* thd);
 extern MYSQL_PLUGIN_IMPORT const char *primary_key_name;
 extern mysql_mutex_t LOCK_gdl;
 

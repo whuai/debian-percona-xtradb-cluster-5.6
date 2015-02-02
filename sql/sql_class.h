@@ -501,6 +501,7 @@ typedef struct system_variables
   uint  eq_range_index_dive_limit;
   ulong join_buff_size;
   ulong lock_wait_timeout;
+  my_bool qdv_unsafe_ddl_method;
   ulong max_allowed_packet;
   ulong max_error_count;
   ulong max_length_for_sort_data;
@@ -3315,6 +3316,11 @@ public:
   */
   LOG_INFO*  current_linfo;
   NET*       slave_net;			// network connection from slave -> m.
+
+  bool       enable_toi_enter;   /* enable wsrep_to_isolation_begin when unsafe method*/
+  char*      toi_key_dbname;
+  char*      toi_key_tablename;
+  TABLE_LIST * toi_table_list;
 
   /*
     Used to update global user stats.  The global user stats are updated

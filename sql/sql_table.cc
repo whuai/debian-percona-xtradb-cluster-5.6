@@ -6521,6 +6521,39 @@ static bool is_inplace_alter_impossible(TABLE *table,
   DBUG_RETURN(false);
 }
 
+bool mysql_toi_enter_pre(THD* thd, char *db_, char *table_, TABLE_LIST *table_list)
+{
+#ifdef WITH_WSREP
+  if (!thd->variables.qdv_unsafe_ddl_method)
+  {
+    thd->enable_toi_enter = FALSE;
+    if (WSREP(thd) && wsrep_to_isolation_begin(thd, db_, table_, table_list))
+      return true;
+  }
+  else
+  {
+    thd->toi_key_dbname = db_;
+    thd->toi_key_tablename = table_;
+    thd->toi_table_list = table_list;
+    thd->enable_toi_enter = TRUE;
+  }
+#endif /* WITH_WSREP */
+  return false;
+}
+
+bool mysql_toi_enter_post(THD* thd)
+{
+#ifdef WITH_WSREP
+  if (thd->variables.qdv_unsafe_ddl_method && thd->enable_toi_enter)
+  {
+    thd->enable_toi_enter = FALSE;
+    if (WSREP(thd) && wsrep_to_isolation_begin(thd, 
+          thd->toi_key_dbname, thd->toi_key_tablename, thd->toi_table_list))
+      return true;
+  }
+#endif /* WITH_WSREP */
+  return false;
+}
 
 /**
   Perform in-place alter table.
@@ -6639,6 +6672,9 @@ static bool mysql_inplace_alter_table(THD *thd,
 
   // It's now safe to take the table level lock.
   if (lock_tables(thd, table_list, alter_ctx->tables_opened, 0))
+    goto cleanup;
+
+  if(mysql_toi_enter_post(thd))
     goto cleanup;
 
   DEBUG_SYNC(thd, "alter_table_inplace_after_lock_upgrade");
@@ -7857,6 +7893,9 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
     if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
       DBUG_RETURN(true);
 
+    if(mysql_toi_enter_post(thd))
+      DBUG_RETURN(true);
+
     // It's now safe to take the table level lock.
     if (lock_tables(thd, table_list, alter_ctx->tables_opened, 0))
       DBUG_RETURN(true);
@@ -7898,6 +7937,13 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
     */
     if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
       DBUG_RETURN(true);
+
+    /*
+     * avoid to enter toi twice when set index disable/enable
+     * */
+    if(keys_onoff == Alter_info::LEAVE_AS_IS && mysql_toi_enter_post(thd))
+      DBUG_RETURN(true);
+
     close_all_tables_for_name(thd, table->s, true, NULL);
 
     if (mysql_rename_table(old_db_type, alter_ctx->db, alter_ctx->table_name,
@@ -8763,6 +8809,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   // It's now safe to take the table level lock.
   if (lock_tables(thd, table_list, alter_ctx.tables_opened, 0))
+    goto err_new_table_cleanup;
+
+  if(mysql_toi_enter_post(thd))
     goto err_new_table_cleanup;
 
   {

@@ -1858,6 +1858,9 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   if (lock_table_names(thd, views, 0, thd->variables.lock_wait_timeout, 0))
     DBUG_RETURN(TRUE);
 
+  if (mysql_toi_enter_post(thd))
+    DBUG_RETURN(TRUE);
+  
   for (view= views; view; view= view->next_local)
   {
     frm_type_enum type= FRMTYPE_ERROR;

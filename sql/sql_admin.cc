@@ -1119,18 +1119,27 @@ bool Sql_cmd_optimize_table::execute(THD *thd)
 {
   TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
   bool res= TRUE;
+  ulong old_ddl_method;
   DBUG_ENTER("Sql_cmd_optimize_table::execute");
 
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table,
                          FALSE, UINT_MAX, FALSE))
     goto error; /* purecov: inspected */
   WSREP_TO_ISOLATION_BEGIN(first_table->db, first_table->table_name, NULL)
+  //在mysql_alter_table函数中有对variables.qdv_unsafe_ddl_method的处理
+  //所以这里就要避免在ON的时候，再次进入TOI，因为optimize是不需要做这个
+  //处理的，那么通过临时修改这个参数的值，来回避这个问题
+  thd->enable_toi_enter = FALSE;
+  old_ddl_method = thd->variables.qdv_unsafe_ddl_method;
+  thd->variables.qdv_unsafe_ddl_method = 0;
   thd->enable_slow_log= opt_log_slow_admin_statements;
   res= (specialflag & SPECIAL_NO_NEW_FUNC) ?
     mysql_recreate_table(thd, first_table, true) :
     mysql_admin_table(thd, first_table, &thd->lex->check_opt,
                       "optimize", TL_WRITE, 1, 0, 0, 0,
                       &handler::ha_optimize, 0);
+  //恢复之前修改过的值，以免影响其它操作
+  thd->variables.qdv_unsafe_ddl_method = old_ddl_method;
   /* ! we write after unlocking the table */
   if (!res && !thd->lex->no_write_to_binlog)
   {

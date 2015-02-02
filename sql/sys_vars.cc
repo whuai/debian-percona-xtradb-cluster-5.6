@@ -1570,6 +1570,11 @@ static Sys_var_mybool Sys_local_infile(
        "local_infile", "Enable LOAD DATA LOCAL INFILE",
        GLOBAL_VAR(opt_local_infile), CMD_LINE(OPT_ARG), DEFAULT(TRUE));
 
+static Sys_var_mybool Sys_qdv_unsafe_ddl_method(
+       "qdv_unsafe_ddl_method",
+       "pre MDL lock before enter TOI when execute DDL statement, but it can result in deaklock.",
+       SESSION_VAR(qdv_unsafe_ddl_method), NO_CMD_LINE, DEFAULT(FALSE));
+
 static Sys_var_ulong Sys_lock_wait_timeout(
        "lock_wait_timeout",
        "Timeout in seconds to wait for a lock before returning an error.",

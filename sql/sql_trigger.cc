@@ -556,6 +556,9 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
     goto end;
 
+  if (mysql_toi_enter_post(thd))
+    goto end;
+
   lock_upgrade_done= TRUE;
 
   if (!table->triggers)

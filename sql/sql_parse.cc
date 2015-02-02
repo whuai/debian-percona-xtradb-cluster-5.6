@@ -3802,7 +3802,10 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (check_one_table_access(thd, INDEX_ACL, all_tables))
       goto error; /* purecov: inspected */
-    WSREP_TO_ISOLATION_BEGIN(first_table->db, first_table->table_name, NULL)
+
+    if (mysql_toi_enter_pre(thd, first_table->db, first_table->table_name, NULL))
+      goto error;
+
     /*
       Currently CREATE INDEX or DROP INDEX cause a full table rebuild
       and thus classify as slow administrative statements just like
@@ -3895,7 +3898,9 @@ end_with_restore_list:
         goto error;
     }
 
-    WSREP_TO_ISOLATION_BEGIN(0, 0, first_table)
+    if (mysql_toi_enter_pre(thd, 0, 0, first_table))
+      goto error;
+
     if (mysql_rename_tables(thd, first_table, 0))
     {
       goto error;
@@ -5693,14 +5698,16 @@ create_sp_error:
       if (check_table_access(thd, DROP_ACL, all_tables, FALSE, UINT_MAX, FALSE))
         goto error;
       /* Conditionally writes to binlog. */
-      WSREP_TO_ISOLATION_BEGIN(WSREP_MYSQL_DB, NULL, NULL)
+      if (mysql_toi_enter_pre(thd, WSREP_MYSQL_DB, NULL, NULL))
+        goto error;
       res= mysql_drop_view(thd, first_table, thd->lex->drop_mode);
       break;
     }
   case SQLCOM_CREATE_TRIGGER:
   {
     /* Conditionally writes to binlog. */
-    WSREP_TO_ISOLATION_BEGIN(WSREP_MYSQL_DB, NULL, NULL)
+    if (mysql_toi_enter_pre(thd, WSREP_MYSQL_DB, NULL, NULL))
+      goto error;
     res= mysql_create_or_drop_trigger(thd, all_tables, 1);
 
     break;
@@ -5708,7 +5715,8 @@ create_sp_error:
   case SQLCOM_DROP_TRIGGER:
   {
     /* Conditionally writes to binlog. */
-    WSREP_TO_ISOLATION_BEGIN(WSREP_MYSQL_DB, NULL, NULL)
+    if (mysql_toi_enter_pre(thd, WSREP_MYSQL_DB, NULL, NULL))
+      goto error;
     res= mysql_create_or_drop_trigger(thd, all_tables, 0);
     break;
   }
