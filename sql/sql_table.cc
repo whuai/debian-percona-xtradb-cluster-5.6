@@ -6524,7 +6524,7 @@ static bool is_inplace_alter_impossible(TABLE *table,
 bool mysql_toi_enter_pre(THD* thd, char *db_, char *table_, TABLE_LIST *table_list)
 {
 #ifdef WITH_WSREP
-  if (!thd->variables.qdv_unsafe_ddl_method)
+  if (!thd->variables.qdv_unsafe_ddl_method || thd->wsrep_exec_mode == REPL_RECV)
   {
     thd->enable_toi_enter = FALSE;
     if (WSREP(thd) && wsrep_to_isolation_begin(thd, db_, table_, table_list))
