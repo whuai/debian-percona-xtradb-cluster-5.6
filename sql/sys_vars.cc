@@ -1570,10 +1570,19 @@ static Sys_var_mybool Sys_local_infile(
        "local_infile", "Enable LOAD DATA LOCAL INFILE",
        GLOBAL_VAR(opt_local_infile), CMD_LINE(OPT_ARG), DEFAULT(TRUE));
 
+static bool check_ddl_method(sys_var *self, THD *thd, set_var *var)
+{
+  if (var->type == OPT_SESSION)
+    return false;
+  my_error(ER_VARIABLE_IS_READONLY, MYF(0), "GLOBAL", self->name.str, "SESSION");
+  return true;
+}
+
 static Sys_var_mybool Sys_qdv_unsafe_ddl_method(
        "qdv_unsafe_ddl_method",
        "pre MDL lock before enter TOI when execute DDL statement, but it can result in deaklock.",
-       SESSION_VAR(qdv_unsafe_ddl_method), NO_CMD_LINE, DEFAULT(FALSE));
+       SESSION_VAR(qdv_unsafe_ddl_method), NO_CMD_LINE, DEFAULT(FALSE), 
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_ddl_method));
 
 static Sys_var_ulong Sys_lock_wait_timeout(
        "lock_wait_timeout",
